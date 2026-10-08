@@ -22,18 +22,18 @@
         .login-input:focus-within { border-color: #4682c8; box-shadow: 0 0 0 3px rgba(70,130,200,.18); }
         .shake { animation: shake .35s; }
         @keyframes shake { 20%,60% { transform: translateX(-6px);} 40%,80% { transform: translateX(6px);} }
-                /* ปุ่มและแผงคู่มือ */
-        .help-fab { position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 90; }
+        /* ปุ่มและแผงคู่มือ (มุมขวาล่าง) */
+        .help-fab { position: fixed; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 90; }
         .help-panel {
             position: fixed; z-index: 90;
             left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
-            bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
+            bottom: calc(max(16px, env(safe-area-inset-bottom)) + 52px);
             max-height: min(70dvh, 560px); overflow-y: auto; -webkit-overflow-scrolling: touch;
             opacity: 0; visibility: hidden; transform: translateY(8px);
             transition: opacity .2s, transform .2s, visibility 0s .2s;
         }
         .help-panel.is-open { opacity: 1; visibility: visible; transform: none; transition: opacity .2s, transform .2s; }
-        @media (min-width: 640px) { .help-panel { right: auto; width: 380px; left: max(16px, env(safe-area-inset-left)); } }
+        @media (min-width: 640px) { .help-panel { left: auto; width: 380px; right: max(16px, env(safe-area-inset-right)); } }
         @media (prefers-reduced-motion: reduce) { .help-panel, .help-panel.is-open { transition: none; } }
     </style>
 </head>
@@ -120,14 +120,16 @@
             <div id="captureArea" class="bg-white p-2 rounded-xl flex-1 flex flex-col">
                 <!-- โครงตารางสอน -->
                 <div class="overflow-x-auto pb-4 timetable-container no-scrollbar flex-1">
-                    <div class="min-w-[560px] md:min-w-[700px] bg-slate-50 p-4 rounded-2xl border border-slate-100 h-full">
-                        <div class="grid grid-cols-5 gap-2 text-center text-xs font-semibold text-slate-500 mb-3 ml-[56px] md:ml-[76px]">
-                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">07:30 - 09:20</div>
-                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">09:30 - 11:20</div>
-                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">11:30 - 13:20</div>
-                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">13:30 - 15:20</div>
-                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">15:30 - 17:20</div>
-                        </div>
+                   <div class="flex items-center gap-3 mb-3">
+                <div class="w-14 shrink-0"></div>
+                <div class="flex-1 grid grid-cols-5 gap-2 p-1 border border-transparent text-center text-xs font-semibold text-slate-500">
+                <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">07:30 - 09:20</div>
+                <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">09:30 - 11:20</div>
+                <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">11:30 - 13:20</div>
+                <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">13:30 - 15:20</div>
+                <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">15:30 - 17:20</div>
+             </div>
+           </div>
                         <div id="timetableRows" class="space-y-3">
                             <!-- ถูกสร้างด้วย JS แบบแก้บั๊กรูปภาพ -->
                         </div>
@@ -274,13 +276,9 @@
             </div>
         </div>
 
-        <button id="helpFab" class="help-fab flex items-center justify-center gap-2 h-12 min-w-[48px] px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg font-medium text-sm transition" aria-expanded="false" aria-controls="helpPanel" aria-label="เปิดคู่มือการใช้งาน">
+                <button id="helpFab" class="help-fab flex items-center justify-center w-10 h-10 rounded-full bg-white/90 text-slate-400 hover:text-blue-600 hover:border-blue-300 border border-slate-200 shadow-sm transition" title="คู่มือการใช้งาน" aria-expanded="false" aria-controls="helpPanel" aria-label="เปิดคู่มือการใช้งาน">
             <i id="helpIcon" class="fa-solid fa-question"></i>
-            <span class="hidden sm:inline">คู่มือใช้งาน</span>
-            <span id="helpDot" class="absolute -top-1 -right-1 flex h-3 w-3">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
-            </span>
+            <span id="helpDot" class="hidden"></span>
         </button>
     </div>
 
@@ -513,7 +511,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
 
             DAYS.forEach(dayObj => {
                 let rowHtml = `<div class="flex items-center gap-3 relative">
-                    <div class="w-12 md:w-16 h-[68px] md:h-[76px] rounded-xl flex flex-col justify-center items-center font-bold text-sm shrink-0 shadow-sm border bg-white ${dayObj.color.replace('bg-', 'text-').split(' ')[1]}">
+                    <div class="w-14 h-[72px] rounded-xl flex flex-col justify-center items-center font-bold text-sm shrink-0 shadow-sm border bg-white ${dayObj.color.replace('bg-', 'text-').split(' ')[1]}">
                         <span class="text-base leading-none">${dayObj.name}</span><span class="text-[10px] font-medium text-slate-400 mt-1">${dayObj.th}</span>
                     </div>
                     <div class="flex-1 grid grid-cols-5 gap-2 h-[68px] md:h-[76px] bg-white rounded-xl border border-dashed border-slate-200 p-1 relative shadow-sm">`;
@@ -586,7 +584,13 @@ document.getElementById('searchInput').addEventListener('input', e => {
                 useCORS: true,
                 allowTaint: true,
                 logging: false,
-                windowWidth: element.scrollWidth // บังคับให้ถ่ายเต็มความกว้าง
+                windowWidth: element.scrollWidth,
+    onclone: (doc) => {
+    const s = doc.createElement('style');
+    // ปรับเลข -0.3em ได้: ตัวอักษรยังต่ำ -> ใช้ -0.45em, สูงเกิน -> ใช้ -0.15em
+    s.textContent = '#captureArea span, #captureArea b, #captureArea h4, #captureArea p:not(:has(*)), #captureArea .grid-cols-5 > div { position: relative; top: -0.3em; }';
+    doc.head.appendChild(s);
+}
             }).then(canvas => {
                 const dataUrl = canvas.toDataURL('image/png');
             if (iosWin) {
