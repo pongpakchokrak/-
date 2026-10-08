@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RU Timetable - ระบบจัดตารางเรียน</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- โหลดไลบรารีสำหรับถ่ายรูปหน้าจอ (ดาวน์โหลดตาราง) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style> 
+        body { font-family: 'Prompt', sans-serif; background-color: #f1f5f9; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .timetable-container { -webkit-overflow-scrolling: touch; }
+    </style>
+</head>
+<body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+
+    <!-- แถบเมนู -->
+    <nav class="bg-white shadow-sm z-50 shrink-0 border-b border-slate-200">
+        <div class="max-w-[1400px] mx-auto px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center">
+                <button id="btnAdminTrigger" class="text-slate-300 hover:text-blue-500 transition mr-3 text-lg" title="ตั้งค่าระบบ">
+                    <i class="fa-solid fa-gear"></i>
+                </button>
+                <div class="flex flex-col">
+                    <div class="text-xl md:text-2xl font-bold text-blue-600 tracking-wide flex items-center">
+                        <i class="fa-solid fa-graduation-cap mr-2"></i>RU Timetable
+                    </div>
+                    <div class="text-[10px] md:text-xs text-slate-500 font-medium">
+                        สำหรับเอกการประถม อิงตามโครงสร้างปีการศึกษา 2567
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex items-center gap-4 text-xs md:text-sm font-medium">
+                <div class="text-slate-500 hidden sm:block">
+                    <i class="fa-regular fa-clock text-blue-400 mr-1"></i> <span id="realTimeClock">กำลังโหลดเวลา...</span>
+                </div>
+                <div class="text-blue-700 bg-blue-50 px-4 py-1.5 rounded-full border border-blue-200 shadow-sm">
+                    <i class="fa-solid fa-chart-simple mr-1"></i> เข้าชมรวม: <span id="visitorCount">...</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- แถบประกาศข่าวสาร -->
+    <div id="newsBanner" class="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-sm px-4 py-2.5 flex items-center justify-center gap-2 hidden shrink-0 font-medium w-full text-center shadow-md z-40 relative">
+        <i class="fa-solid fa-bullhorn animate-bounce"></i> 
+        <span id="newsText"></span>
+    </div>
+
+    <!-- ส่วนเนื้อหาหลัก -->
+    <div class="max-w-[1400px] mx-auto px-2 md:px-4 py-4 md:py-6 w-full flex-1 overflow-y-auto md:overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+        
+        <!-- ฝั่งซ้าย: ค้นหาและรายการวิชา -->
+        <div class="lg:col-span-4 flex flex-col h-auto md:h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
+            <div class="p-4 border-b border-slate-100 bg-slate-50 shrink-0">
+                <h2 class="font-bold text-lg mb-3 text-slate-700"><i class="fa-solid fa-magnifying-glass text-blue-500 mr-2"></i>ค้นหาวิชาเรียน</h2>
+                <div class="relative">
+                    <i class="fa-solid fa-bolt absolute left-4 top-3.5 text-amber-400"></i>
+                    <input type="text" id="searchInput" placeholder="พิมพ์รหัส หรือชื่อวิชา..." class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm shadow-inner bg-white">
+                </div>
+            </div>
+            
+            <div id="courseList" class="flex-1 overflow-y-auto no-scrollbar p-3 space-y-4 bg-slate-50/50">
+                <div class="text-center text-slate-400 mt-10">
+                    <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-blue-500"></i>
+                    <p>กำลังเชื่อมต่อฐานข้อมูล...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ฝั่งขวา: ตารางเรียน -->
+        <div class="lg:col-span-8 flex flex-col h-auto md:h-full bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6 overflow-y-auto no-scrollbar relative">
+            <div class="flex justify-between items-center mb-6 shrink-0">
+                <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2 text-slate-800">
+                    <i class="fa-regular fa-calendar-days text-blue-500"></i> ตารางเรียนของฉัน
+                </h2>
+                <!-- ปุ่มดาวน์โหลดทำงานได้แล้ว -->
+                <button id="btnDownload" class="text-xs md:text-sm bg-slate-800 text-white px-4 py-2.5 rounded-xl hover:bg-slate-700 transition font-medium shadow-sm flex items-center gap-2">
+                    <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">เซฟรูปภาพ</span>
+                </button>
+            </div>
+
+            <div id="overlapAlert" class="hidden bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-r-xl mb-4 text-sm flex items-center gap-2 font-medium shrink-0 shadow-sm">
+                <i class="fa-solid fa-triangle-exclamation"></i> ไม่สามารถเพิ่มได้! วันและเวลาเรียนทับซ้อนกัน
+            </div>
+
+            <!-- 📸 ส่วนที่จะถูกแคปเจอร์ (ตาราง + กำหนดสอบ) -->
+            <div id="captureArea" class="bg-white p-2 rounded-xl flex-1 flex flex-col">
+                <!-- โครงตารางสอน -->
+                <div class="overflow-x-auto pb-4 timetable-container no-scrollbar flex-1">
+                    <div class="min-w-[700px] bg-slate-50 p-4 rounded-2xl border border-slate-100 h-full">
+                        <div class="grid grid-cols-5 gap-2 text-center text-xs font-semibold text-slate-500 mb-3 ml-[76px]">
+                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">07:30 - 09:20</div>
+                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">09:30 - 11:20</div>
+                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">11:30 - 13:20</div>
+                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">13:30 - 15:20</div>
+                            <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">15:30 - 17:20</div>
+                        </div>
+                        <div id="timetableRows" class="space-y-3">
+                            <!-- ถูกสร้างด้วย JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- สรุปข้อมูลด้านล่าง -->
+                <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 shrink-0">
+                    <div class="w-full sm:w-auto">
+                        <h4 class="font-bold text-slate-700 mb-2"><i class="fa-solid fa-pen-to-square text-amber-500 mr-1"></i> กำหนดการสอบ</h4>
+                        <ul id="examList" class="text-xs md:text-sm text-slate-600 space-y-1 bg-slate-50 p-3 rounded-xl border border-slate-100 w-full min-h-[50px]">
+                            <li class="text-slate-400 italic">ยังไม่มีวิชาที่มีสอบ</li>
+                        </ul>
+                    </div>
+                    <div class="text-left sm:text-right bg-gradient-to-br from-blue-50 to-blue-100 p-4 rounded-xl border border-blue-200 min-w-[140px] shadow-sm">
+                        <p class="text-xs text-blue-600 font-bold mb-1">หน่วยกิตรวม</p>
+                        <p class="text-3xl md:text-4xl font-black text-blue-700 leading-none"><span id="totalCredits">0</span></p>
+                    </div>
+                </div>
+            </div>
+            <!-- สิ้นสุดส่วนที่จะแคปเจอร์ -->
+
+        </div>
+    </div>
+
+    <!-- ==========================================
+         ระบบ POP-UP แอดมิน
+    =========================================== -->
+    <div id="adminOverlay" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[100] hidden flex items-center justify-center opacity-0 transition-opacity duration-300 px-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-95" id="adminModalBox">
+            
+            <div id="stepPassword" class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h3 class="font-bold text-lg text-slate-800"><i class="fa-solid fa-shield-halved text-blue-500 mr-2"></i>ผู้ดูแลระบบ</h3>
+                    <button class="text-slate-400 hover:text-red-500 close-modal"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <input type="password" id="adminPassword" placeholder="รหัสผ่าน..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 mb-2 bg-slate-50 text-center tracking-widest text-lg">
+                <p id="errorMsg" class="text-red-500 text-sm hidden mb-4 text-center">รหัสผ่านไม่ถูกต้อง!</p>
+                <button id="btnSubmitPassword" class="w-full mt-4 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-medium transition">เข้าสู่ระบบ</button>
+            </div>
+
+            <div id="stepAdminPanel" class="p-6 hidden">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-bold text-lg"><i class="fa-solid fa-sliders text-blue-500 mr-2"></i>ตั้งค่าระบบ</h3>
+                    <button class="text-slate-400 hover:text-red-500 close-modal"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                
+                <div class="mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <label class="block text-sm font-bold text-slate-700 mb-2"><i class="fa-solid fa-bullhorn text-amber-500 mr-1"></i> ประกาศข่าวสารด่วน</label>
+                    <textarea id="adminNewsInput" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 text-sm" placeholder="พิมพ์ข้อความที่นี่... (ลบข้อความเพื่อซ่อนแถบ)"></textarea>
+                    <button id="btnSaveNews" class="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-medium transition flex justify-center items-center gap-2 text-sm shadow-sm">
+                        บันทึกประกาศ
+                    </button>
+                </div>
+
+                <div class="border-t border-slate-100 pt-5">
+                    <label class="block text-sm font-bold text-slate-700 mb-2"><i class="fa-solid fa-database text-blue-500 mr-1"></i> ฐานข้อมูล</label>
+                    <button id="btnSyncData" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition flex justify-center items-center gap-2 shadow-sm">
+                        <i class="fa-solid fa-rotate"></i> ดึงข้อมูลล่าสุดจากชีต
+                    </button>
+                </div>
+            </div>
+            
+            <div id="stepLoading" class="p-8 hidden text-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-5xl text-blue-500 mb-4"></i>
+                <h3 class="font-bold text-slate-700" id="loadingText">กำลังดำเนินการ...</h3>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const PROJECT_ID = "ru-timetable";
+        let allCourses = [];
+        let mySchedule = [];
+
+        const DAYS = [
+            { id: "M", name: "MON", th: "จันทร์", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
+            { id: "TU", name: "TUE", th: "อังคาร", color: "bg-pink-100 text-pink-700 border-pink-200" },
+            { id: "W", name: "WED", th: "พุธ", color: "bg-green-100 text-green-700 border-green-200" },
+            { id: "TH", name: "THU", th: "พฤหัสฯ", color: "bg-orange-100 text-orange-700 border-orange-200" },
+            { id: "F", name: "FRI", th: "ศุกร์", color: "bg-blue-100 text-blue-700 border-blue-200" }
+        ];
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('realTimeClock').innerText = now.toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' }) + ' | ' + now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        function getField(fields, ...keys) {
+            for (let key of keys) {
+                if (fields[key] !== undefined) return fields[key].stringValue || fields[key].integerValue || fields[key].doubleValue || "-";
+            }
+            return "-";
+        }
+
+        function cleanTimeFormat(timeStr) {
+            if(!timeStr || timeStr === "-") return "-";
+            const match = timeStr.toString().match(/(\d{1,2}:\d{2})/); 
+            return match ? match[1] : timeStr;
+        }
+
+        function cleanDateFormat(dateStr) {
+            if(!dateStr || dateStr === "-") return "-";
+            const d = new Date(dateStr);
+            if(!isNaN(d) && dateStr.toString().length > 8) {
+                return d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short', year: 'numeric' });
+            }
+            return dateStr;
+        }
+
+        function mapDay(dayStr) {
+            if(!dayStr || dayStr === "-") return "-";
+            const d = dayStr.toUpperCase().trim();
+            if(d.includes("MON")) return "M";
+            if(d.includes("TUE")) return "TU";
+            if(d.includes("WED")) return "W";
+            if(d.includes("THU")) return "TH";
+            if(d.includes("FRI")) return "F";
+            return d;
+        }
+
+        function checkEmpty(val) {
+            return (!val || val === "-" || val.trim() === "") ? `<span class="text-slate-300">ไม่ระบุ</span>` : val;
+        }
+
+        async function fetchCourses() {
+            document.getElementById('courseList').innerHTML = `<div class="text-center text-slate-400 mt-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-blue-500"></i><p>กำลังโหลดข้อมูลล่าสุด...</p></div>`;
+            try {
+                const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/courses?pageSize=100`;
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                if (data.documents) {
+                    allCourses = data.documents.map(doc => {
+                        const f = doc.fields;
+                        let rawInstructor = getField(f, "Instructor", "ผู้สอน");
+                        if(rawInstructor !== "-") {
+                            rawInstructor = rawInstructor.replace(/\\n|\n/g, '<br>').trim();
+                        }
+
+                        return {
+                            id: doc.name.split('/').pop(),
+                            rowIndex: f["RowIndex"] ? parseInt(f["RowIndex"].integerValue) : 999,
+                            code: getField(f, "CourseCode", "รหัสวิชา"),
+                            name: getField(f, "ชื่อวิชา (ไทย)", "CourseName"),
+                            instructor: rawInstructor,
+                            day: getField(f, "Day", "วัน"),
+                            start: cleanTimeFormat(getField(f, "TimeStart", "เริ่ม")),
+                            end: cleanTimeFormat(getField(f, "TimeEnd", "สิ้นสุด")),
+                            room: getField(f, "Room", "ห้องเรียน"),
+                            examDate: cleanDateFormat(getField(f, "Exam Date", "ExamDate", "วันสอบ")),
+                            examSession: getField(f, "ExamSession", "คาบสอบ"),
+                            credit: getField(f, "Credit", "หน่วยกิต"),
+                            note: getField(f, "หมายเหตุ")
+                        };
+                    }).filter(c => c.code !== "CourseCode" && c.code !== "-");
+                    
+                    allCourses.sort((a, b) => a.rowIndex - b.rowIndex);
+                }
+                renderCourseList(allCourses);
+            } catch (e) {
+                document.getElementById('courseList').innerHTML = `<p class="text-red-500 text-center mt-10">ไม่สามารถเชื่อมต่อฐานข้อมูลได้</p>`;
+            }
+        }
+
+        function renderCourseList(courses) {
+            const list = document.getElementById('courseList');
+            list.innerHTML = "";
+            if(courses.length === 0) { list.innerHTML = `<p class="text-center text-slate-400 mt-10">ไม่พบวิชาเรียน</p>`; return; }
+
+            courses.forEach(c => {
+                const isAdded = mySchedule.some(sch => sch.code === c.code);
+                const isNotOffered = (c.note && c.note.includes("ไม่เปิดสอน")) || (!c.day || c.day.trim() === "-" || !c.start || c.start.trim() === "-");
+                
+                let btnHTML = "";
+                let cardStyle = "";
+                
+                if (isNotOffered) {
+                    btnHTML = `<button disabled class="bg-slate-100 text-slate-400 rounded-lg px-3 py-1.5 text-xs font-bold cursor-not-allowed border border-slate-200"><i class="fa-solid fa-lock mr-1"></i> ปิด</button>`;
+                    cardStyle = "bg-slate-50 border-slate-200 opacity-80";
+                } else if (isAdded) {
+                    btnHTML = `<button disabled class="bg-green-100 text-green-600 rounded-lg px-3 py-1.5 text-xs font-bold cursor-not-allowed shadow-sm border border-green-200"><i class="fa-solid fa-check mr-1"></i> เลือกแล้ว</button>`;
+                    cardStyle = "bg-green-50 border-green-300 shadow-sm";
+                } else {
+                    btnHTML = `<button onclick="addToSchedule('${c.code}')" class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm border border-blue-200"><i class="fa-solid fa-plus mr-1"></i> เพิ่ม</button>`;
+                    cardStyle = "bg-white border-slate-200 hover:shadow-md hover:border-blue-300";
+                }
+
+                let noteHtml = "";
+                if(c.note && c.note !== "-" && c.note.trim() !== "") {
+                    if(c.note.includes("ไม่เปิดสอน")) {
+                        noteHtml = `<div class="col-span-2 pt-2 border-t border-slate-100 text-red-500 font-bold mt-1"><i class="fa-solid fa-ban w-4"></i> ${c.note}</div>`;
+                    } else {
+                        noteHtml = `<div class="col-span-2 pt-2 border-t border-slate-100 text-blue-600 font-medium mt-1"><i class="fa-solid fa-circle-info w-4"></i> ${c.note}</div>`;
+                    }
+                }
+
+                let examHtml = "";
+                if (c.examDate !== '-') {
+                    examHtml = `<div class="col-span-2 pt-2 border-t border-slate-100 text-amber-600 font-medium mt-1"><i class="fa-solid fa-pen text-amber-500 w-4"></i> สอบ: ${c.examDate} ${c.examSession !== "-" ? `(${c.examSession})` : ''}</div>`;
+                }
+
+                let instructorHtml = "";
+                if (c.instructor && c.instructor !== '-') {
+                    instructorHtml = `
+                    <div class="text-[11px] md:text-xs text-slate-600 mb-3 bg-blue-50/50 p-3 rounded-lg border border-blue-100 leading-relaxed shadow-inner">
+                        <span class="font-bold text-blue-700 block mb-1"><i class="fa-solid fa-chalkboard-user mr-1.5"></i>อาจารย์ผู้สอน:</span> 
+                        ${c.instructor}
+                    </div>`;
+                }
+
+                const html = `
+                <div class="p-4 rounded-xl shadow-sm border transition group ${cardStyle}">
+                    <div class="flex justify-between items-start mb-2 gap-2">
+                        <div>
+                            <h3 class="font-black text-base md:text-lg ${isNotOffered ? 'text-slate-500 line-through' : (isAdded ? 'text-green-700' : 'text-slate-800')}">${c.code}</h3>
+                            <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-bold border border-slate-200">${checkEmpty(c.credit)} หน่วยกิต</span>
+                        </div>
+                        <div class="shrink-0">${btnHTML}</div>
+                    </div>
+                    
+                    <p class="text-xs md:text-sm text-slate-700 mb-3 font-bold">${c.name}</p>
+                    ${instructorHtml}
+                    
+                    <div class="grid grid-cols-2 gap-y-2 text-[11px] text-slate-500 bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
+                        <div class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-blue-400 w-3"></i> ${checkEmpty(c.day)} ${checkEmpty(c.start)}-${checkEmpty(c.end)}</div>
+                        <div class="flex items-center gap-1.5 truncate"><i class="fa-solid fa-location-dot text-red-400 w-3"></i> ${checkEmpty(c.room)}</div>
+                        ${examHtml}
+                        ${noteHtml}
+                    </div>
+                </div>`;
+                list.insertAdjacentHTML('beforeend', html);
+            });
+        }
+
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const text = e.target.value.toLowerCase();
+            renderCourseList(allCourses.filter(c => c.code.toLowerCase().includes(text) || c.name.toLowerCase().includes(text)));
+        });
+
+        // ==========================================
+        // จัดการตารางเรียน (ฝั่งขวา)
+        // ==========================================
+        function renderTimetableGrid() {
+            const container = document.getElementById('timetableRows');
+            container.innerHTML = "";
+            let totalCredits = 0;
+
+            DAYS.forEach(dayObj => {
+                let rowHtml = `<div class="flex items-center gap-3 relative">
+                    <div class="w-16 h-[76px] rounded-xl flex flex-col justify-center items-center font-bold text-sm shrink-0 shadow-sm border bg-white ${dayObj.color.replace('bg-', 'text-').split(' ')[1]}">
+                        <span class="text-base leading-none">${dayObj.name}</span><span class="text-[10px] font-medium text-slate-400 mt-1">${dayObj.th}</span>
+                    </div>
+                    <div class="flex-1 grid grid-cols-5 gap-2 h-[76px] bg-white rounded-xl border border-dashed border-slate-200 p-1 relative shadow-sm">`;
+
+                const dayCourses = mySchedule.filter(c => mapDay(c.day) === dayObj.id);
+                
+                dayCourses.forEach(c => {
+                    totalCredits += Number(c.credit) || 0;
+                    
+                    const hourStart = parseInt(c.start.split(':')[0]);
+                    let colIdx = 1;
+                    if (hourStart >= 9 && hourStart < 11) colIdx = 2;
+                    else if (hourStart >= 11 && hourStart < 13) colIdx = 3;
+                    else if (hourStart >= 13 && hourStart < 15) colIdx = 4;
+                    else if (hourStart >= 15) colIdx = 5;
+
+                    rowHtml += `
+                        <div class="col-start-${colIdx} col-span-1 ${dayObj.color} rounded-lg p-2 flex flex-col justify-center relative group shadow-sm transition-transform hover:scale-[1.02] cursor-default border" data-html2canvas-ignore="false">
+                            <span class="font-black text-xs md:text-sm leading-none mb-1.5 truncate">${c.code}</span>
+                            <span class="text-[9px] md:text-[10px] leading-none opacity-80 truncate bg-white/50 py-0.5 px-1 rounded inline-block w-fit">${c.room}</span>
+                            <!-- ซ่อนปุ่มลบตอนที่ดาวน์โหลดรูปภาพ -->
+                            <button data-html2canvas-ignore="true" onclick="removeFromSchedule('${c.code}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition shadow-md z-10 border-2 border-white">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>`;
+                });
+                rowHtml += `</div></div>`;
+                container.insertAdjacentHTML('beforeend', rowHtml);
+            });
+
+            const examList = document.getElementById('examList');
+            examList.innerHTML = "";
+            if(mySchedule.length === 0) examList.innerHTML = `<li class="text-slate-400 italic">ยังไม่มีวิชาที่มีสอบ</li>`;
+            
+            mySchedule.filter(c => c.examDate && c.examDate !== "-" && c.examDate !== "").forEach(c => {
+                examList.insertAdjacentHTML('beforeend', `<li class="flex items-center gap-2 border-b border-slate-100 pb-1.5 pt-1 last:border-0"><span class="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-pen"></i></span> <b class="text-slate-700">${c.code}</b> : <span class="text-slate-500">${c.examDate} ${c.examSession !== "-" ? `(${c.examSession})` : ''}</span></li>`);
+            });
+
+            document.getElementById('totalCredits').innerText = totalCredits;
+        }
+
+        function addToSchedule(code) {
+            const course = allCourses.find(c => c.code === code);
+            const hourStart = parseInt(course.start.split(':')[0]);
+            
+            const isOverlap = mySchedule.some(c => {
+                const cHour = parseInt(c.start.split(':')[0]);
+                return mapDay(c.day) === mapDay(course.day) && Math.abs(cHour - hourStart) <= 1;
+            });
+            
+            if(isOverlap) {
+                const alert = document.getElementById('overlapAlert');
+                alert.classList.remove('hidden');
+                setTimeout(() => alert.classList.add('hidden'), 3500);
+                return;
+            }
+            mySchedule.push(course);
+            renderCourseList(allCourses);
+            renderTimetableGrid();
+        }
+
+        function removeFromSchedule(code) {
+            mySchedule = mySchedule.filter(c => c.code !== code);
+            renderCourseList(allCourses);
+            renderTimetableGrid();
+        }
+
+        // ==========================================
+        // ระบบถ่ายรูปหน้าจอ (Download)
+        // ==========================================
+        document.getElementById('btnDownload').addEventListener('click', function() {
+            if(mySchedule.length === 0) {
+                alert('โปรดเพิ่มวิชาเรียนลงในตารางก่อนดาวน์โหลดครับ');
+                return;
+            }
+            
+            const btn = this;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...`;
+            btn.classList.add('opacity-75', 'cursor-wait');
+
+            // ใช้ html2canvas แคปเจอร์เฉพาะส่วนที่มี id="captureArea"
+            const element = document.getElementById('captureArea');
+            html2canvas(element, { 
+                scale: 2, // ทำให้รูปชัดขึ้น 2 เท่า (HD)
+                backgroundColor: "#f8fafc", 
+                logging: false
+            }).then(canvas => {
+                let link = document.createElement('a');
+                link.download = 'RU_Timetable_2567.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                
+                // คืนค่าปุ่มกลับมาเหมือนเดิม
+                btn.innerHTML = originalContent;
+                btn.classList.remove('opacity-75', 'cursor-wait');
+            });
+        });
+
+        // ==========================================
+        // ระบบแอดมิน
+        // ==========================================
+        async function loadSystemConfig() {
+            try {
+                const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/settings/general`;
+                const res = await fetch(url);
+                if(res.ok) {
+                    const data = await res.json();
+                    let views = parseInt(data.fields?.visitor_count?.integerValue || 0) + 1;
+                    document.getElementById('visitorCount').innerText = views.toLocaleString();
+                    
+                    const news = data.fields?.news_text?.stringValue || "";
+                    const newsBanner = document.getElementById('newsBanner');
+                    if(news) {
+                        document.getElementById('newsText').innerText = news;
+                        newsBanner.classList.remove('hidden');
+                        document.getElementById('adminNewsInput').value = news;
+                    }
+
+                    fetch(url, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ fields: { visitor_count: { integerValue: views }, news_text: { stringValue: news }}}) });
+                }
+            } catch(e){}
+        }
+
+        const overlay = document.getElementById('adminOverlay');
+        const modalBox = document.getElementById('adminModalBox');
+        
+        document.getElementById('btnAdminTrigger').addEventListener('click', () => {
+            overlay.classList.remove('hidden');
+            setTimeout(() => { overlay.classList.remove('opacity-0'); modalBox.classList.remove('scale-95'); }, 10);
+            document.getElementById('stepPassword').classList.remove('hidden');
+            document.getElementById('stepAdminPanel').classList.add('hidden');
+            document.getElementById('stepLoading').classList.add('hidden');
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('errorMsg').classList.add('hidden');
+        });
+
+        document.querySelectorAll('.close-modal').forEach(btn => btn.addEventListener('click', () => {
+            overlay.classList.add('opacity-0'); modalBox.classList.add('scale-95');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }));
+
+        document.getElementById('btnSubmitPassword').addEventListener('click', () => {
+            if(document.getElementById('adminPassword').value === 'admin123') {
+                document.getElementById('stepPassword').classList.add('hidden');
+                document.getElementById('stepAdminPanel').classList.remove('hidden');
+            } else {
+                document.getElementById('errorMsg').classList.remove('hidden');
+            }
+        });
+
+        document.getElementById('btnSaveNews').addEventListener('click', async () => {
+            document.getElementById('stepAdminPanel').classList.add('hidden');
+            document.getElementById('stepLoading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "กำลังบันทึกประกาศ...";
+            
+            const newText = document.getElementById('adminNewsInput').value;
+            const views = parseInt(document.getElementById('visitorCount').innerText.replace(/,/g, '')) || 1;
+            const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/settings/general`;
+            
+            await fetch(url, { method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ fields: { visitor_count: { integerValue: views }, news_text: { stringValue: newText }}}) });
+            location.reload();
+        });
+
+        document.getElementById('btnSyncData').addEventListener('click', async () => {
+            document.getElementById('stepAdminPanel').classList.add('hidden');
+            document.getElementById('stepLoading').classList.remove('hidden');
+            document.getElementById('loadingText').innerText = "กำลังดึงข้อมูลล่าสุดจากชีต...";
+            
+            await fetchCourses(); 
+            
+            setTimeout(() => {
+                overlay.classList.add('opacity-0'); modalBox.classList.add('scale-95');
+                setTimeout(() => overlay.classList.add('hidden'), 300);
+                alert("ดึงข้อมูลล่าสุดสำเร็จแล้ว!");
+            }, 1000);
+        });
+
+        loadSystemConfig();
+        fetchCourses();
+        renderTimetableGrid();
+    </script>
+</body>
+</html>
