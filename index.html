@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RU Timetable - ระบบจัดตารางเรียน</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Cpath fill='%23fff' d='M32 14 6 26l26 12 20-9.2V40h4V26z'/%3E%3Cpath fill='%23fff' d='M16 36v10c0 4 7.2 8 16 8s16-4 16-8V36l-16 7.4z'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -21,6 +22,19 @@
         .login-input:focus-within { border-color: #4682c8; box-shadow: 0 0 0 3px rgba(70,130,200,.18); }
         .shake { animation: shake .35s; }
         @keyframes shake { 20%,60% { transform: translateX(-6px);} 40%,80% { transform: translateX(6px);} }
+                /* ปุ่มและแผงคู่มือ */
+        .help-fab { position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom)); z-index: 90; }
+        .help-panel {
+            position: fixed; z-index: 90;
+            left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right));
+            bottom: calc(max(16px, env(safe-area-inset-bottom)) + 60px);
+            max-height: min(70dvh, 560px); overflow-y: auto; -webkit-overflow-scrolling: touch;
+            opacity: 0; visibility: hidden; transform: translateY(8px);
+            transition: opacity .2s, transform .2s, visibility 0s .2s;
+        }
+        .help-panel.is-open { opacity: 1; visibility: visible; transform: none; transition: opacity .2s, transform .2s; }
+        @media (min-width: 640px) { .help-panel { right: auto; width: 380px; left: max(16px, env(safe-area-inset-left)); } }
+        @media (prefers-reduced-motion: reduce) { .help-panel, .help-panel.is-open { transition: none; } }
     </style>
 </head>
 <body class="text-slate-800 flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:overflow-hidden">
@@ -37,8 +51,10 @@
                         <i class="fa-solid fa-graduation-cap mr-2"></i>RU Timetable
                     </div>
                     <div class="text-[10px] md:text-xs text-slate-500 font-medium">
-                        สำหรับเอกการประถม อิงตามโครงสร้างปีการศึกษา 2567
-                    </div>
+                    สำหรับนักศึกษาวิชาเอกการประถมศึกษา อ้างอิงโครงสร้างหลักสูตรปีการศึกษา 2567
+                    <span class="text-slate-300 mx-1">|</span>
+                   <span class="font-semibold text-blue-600">ภาคการศึกษาที่ 2/2569</span>
+                   </div>
                 </div>
             </div>
             
@@ -86,11 +102,15 @@
                 <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2 text-slate-800">
                     <i class="fa-regular fa-calendar-days text-blue-500"></i> ตารางเรียนของฉัน
                 </h2>
-                <!-- ปุ่มดาวน์โหลดทำงานได้แล้ว -->
+                <div class="flex items-center gap-2">
+                <button id="btnClear" class="text-xs md:text-sm bg-white text-red-600 border border-red-200 px-4 py-2.5 rounded-xl hover:bg-red-50 transition font-medium shadow-sm flex items-center gap-2">
+                <i class="fa-solid fa-trash-can"></i> <span class="hidden sm:inline">ล้างทั้งหมด</span>
+              </button>
                 <button id="btnDownload" class="text-xs md:text-sm bg-slate-800 text-white px-4 py-2.5 rounded-xl hover:bg-slate-700 transition font-medium shadow-sm flex items-center gap-2">
-                    <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">เซฟรูปภาพ</span>
-                </button>
-            </div>
+                <i class="fa-solid fa-download"></i> <span class="hidden sm:inline">เซฟรูปภาพ</span>
+             </button>
+          </div>
+        </div>
 
             <div id="overlapAlert" class="hidden bg-red-50 border-l-4 border-red-500 text-red-700 p-3 rounded-r-xl mb-4 text-sm flex items-center gap-2 font-medium shrink-0 shadow-sm">
                 <i class="fa-solid fa-triangle-exclamation"></i> ไม่สามารถเพิ่มได้! วันและเวลาเรียนทับซ้อนกัน
@@ -214,6 +234,56 @@
         </div>
     </div>
 
+        <!-- ปุ่มคู่มือการใช้งาน -->
+    <div id="helpWidget">
+        <div id="helpPanel" class="help-panel bg-white rounded-2xl shadow-2xl border border-slate-200" role="dialog" aria-labelledby="helpTitle">
+            <div class="sticky top-0 z-10 bg-white flex items-center justify-between px-4 py-3 border-b border-slate-100 rounded-t-2xl">
+                <h3 id="helpTitle" class="font-bold text-slate-800"><i class="fa-solid fa-book-open text-blue-500 mr-2"></i>คู่มือการใช้งาน</h3>
+                <button id="helpClose" class="w-9 h-9 rounded-full text-slate-400 hover:text-red-500 hover:bg-slate-50 transition" aria-label="ปิดคู่มือ"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+
+            <ol class="p-4 space-y-4 text-sm text-slate-600">
+                <li class="flex gap-3">
+                    <span class="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">1</span>
+                    <div><b class="text-slate-800">ค้นหาวิชา</b><br>พิมพ์รหัสวิชา ชื่อวิชา ชื่ออาจารย์ ห้อง หรือวัน ในช่องค้นหา เช่น <i>จันทร์ 301</i></div>
+                </li>
+                <li class="flex gap-3">
+                    <span class="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">2</span>
+                    <div><b class="text-slate-800">เพิ่มวิชาลงตาราง</b><br>กดปุ่ม <span class="text-blue-600 font-semibold">+ เพิ่ม</span> ที่การ์ดวิชา ถ้าวันและเวลาทับกับวิชาที่เลือกไว้ ระบบจะแจ้งเตือนและไม่เพิ่มให้</div>
+                </li>
+                <li class="flex gap-3">
+                    <span class="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">3</span>
+                    <div><b class="text-slate-800">เปลี่ยนหรือลบวิชา</b><br>กด <span class="text-red-600 font-semibold">ลบออก</span> ที่การ์ดวิชา หรือกดวงกลมแดง <span class="text-red-500 font-bold">×</span> ที่ช่องในตาราง หรือกด <b>ล้างทั้งหมด</b> เพื่อเริ่มใหม่</div>
+                </li>
+                <li class="flex gap-3">
+                    <span class="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">4</span>
+                    <div><b class="text-slate-800">ดูวันสอบและหน่วยกิต</b><br>ใต้ตารางจะสรุปกำหนดการสอบและหน่วยกิตรวมของวิชาที่เลือกให้อัตโนมัติ</div>
+                </li>
+                <li class="flex gap-3">
+                    <span class="shrink-0 w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-bold flex items-center justify-center">5</span>
+                    <div><b class="text-slate-800">บันทึกเป็นรูปภาพ</b><br>กดปุ่ม <b>เซฟรูปภาพ</b> บน iPhone/iPad รูปจะเปิดในแท็บใหม่ ให้กดค้างที่รูปแล้วเลือกบันทึกรูปภาพ</div>
+                </li>
+            </ol>
+
+            <div class="px-4 pb-4 space-y-3">
+                <div class="text-xs text-slate-500 bg-slate-50 border border-slate-100 rounded-xl p-3 leading-relaxed">
+                    <i class="fa-solid fa-circle-info text-blue-400 mr-1"></i>
+                    ตารางที่เลือกจะถูกจำไว้ในเครื่องนี้ ไม่ข้ามไปเครื่องอื่น และจะหายถ้าล้างประวัติเบราว์เซอร์ วิชาที่ขึ้นสีเทาและปุ่ม <b>ปิด</b> คือวิชาที่ไม่เปิดสอนในภาคนี้
+                </div>
+                <button id="helpHide" class="text-xs text-slate-400 hover:text-slate-600 underline">ซ่อนปุ่มคู่มือ (จนกว่าจะเปิดเว็บใหม่)</button>
+            </div>
+        </div>
+
+        <button id="helpFab" class="help-fab flex items-center justify-center gap-2 h-12 min-w-[48px] px-4 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg font-medium text-sm transition" aria-expanded="false" aria-controls="helpPanel" aria-label="เปิดคู่มือการใช้งาน">
+            <i id="helpIcon" class="fa-solid fa-question"></i>
+            <span class="hidden sm:inline">คู่มือใช้งาน</span>
+            <span id="helpDot" class="absolute -top-1 -right-1 flex h-3 w-3">
+                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+            </span>
+        </button>
+    </div>
+
     <script>
         const PROJECT_ID = "ru-timetable";
         firebase.initializeApp({
@@ -229,6 +299,25 @@ const USERNAME_DOMAIN = "admin.ru-timetable.app"; // ต้องตรงกั
         let allCourses = [];
         let mySchedule = [];
         let searchQuery = "";
+        // ----- จำวิชาที่เลือกไว้ในเบราว์เซอร์ (ไม่ลงฐานข้อมูล) -----
+const STORAGE_KEY = 'ru_timetable_2_2569'; // เปลี่ยนเลขภาคเมื่อขึ้นภาคใหม่ เพื่อเริ่มตารางใหม่
+function saveSchedule() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(mySchedule.map(c => c.code))); } catch (e) {}
+}
+function loadSavedSchedule() {
+    let codes = [];
+    try { codes = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch (e) {}
+    const result = [];
+    codes.forEach(code => {
+        const c = allCourses.find(x => x.code === code);
+        if (!c) return; // วิชานี้ถูกลบจากฐานข้อมูลแล้ว
+        const closed = (c.note && c.note.includes("ไม่เปิดสอน")) || c.day === "-" || c.start === "-";
+        if (closed) return;
+        const clash = result.some(r => mapDay(r.day) === mapDay(c.day) && slotOf(r.start) === slotOf(c.start));
+        if (!clash) result.push(c);
+    });
+    mySchedule = result;
+}
 
         const DAYS = [
             { id: "M", name: "MON", th: "จันทร์", color: "bg-yellow-100 text-yellow-700 border-yellow-200" },
@@ -317,6 +406,8 @@ const USERNAME_DOMAIN = "admin.ru-timetable.app"; // ต้องตรงกั
                     }).filter(c => c.code !== "CourseCode" && c.code !== "-");
                     
                     allCourses.sort((a, b) => a.rowIndex - b.rowIndex);
+                    loadSavedSchedule();
+                    renderTimetableGrid();
                 }
                 applySearch()
             } catch (e) {
@@ -358,7 +449,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
                     btnHTML = `<button disabled class="bg-slate-100 text-slate-400 rounded-lg px-3 py-1.5 text-xs font-bold cursor-not-allowed border border-slate-200"><i class="fa-solid fa-lock mr-1"></i> ปิด</button>`;
                     cardStyle = "bg-slate-50 border-slate-200 opacity-80";
                 } else if (isAdded) {
-                    btnHTML = `<button disabled class="bg-green-100 text-green-600 rounded-lg px-3 py-1.5 text-xs font-bold cursor-not-allowed shadow-sm border border-green-200"><i class="fa-solid fa-check mr-1"></i> เลือกแล้ว</button>`;
+                    btnHTML = `<button onclick="removeFromSchedule('${c.code}')" class="bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm border border-red-200"><i class="fa-solid fa-trash-can mr-1"></i> ลบออก</button>`;
                     cardStyle = "bg-green-50 border-green-300 shadow-sm";
                 } else {
                     btnHTML = `<button onclick="addToSchedule('${c.code}')" class="bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white rounded-lg px-3 py-1.5 text-xs font-bold transition shadow-sm border border-blue-200"><i class="fa-solid fa-plus mr-1"></i> เพิ่ม</button>`;
@@ -444,7 +535,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
                         <div class="col-span-1 ${dayObj.color} rounded-lg p-2 flex flex-col justify-center relative group shadow-sm transition-transform hover:scale-[1.02] border cursor-default">
                             <span class="font-black text-xs md:text-sm mb-1">${c.code}</span>
                             <span class="text-[9px] md:text-[10px] opacity-80 bg-white/50 py-0.5 px-1 rounded inline-block w-fit">${c.room}</span>
-                            <button data-html2canvas-ignore="true" onclick="removeFromSchedule('${c.code}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 md:w-5 md:h-5 flex items-center justify-center text-[10px] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition shadow-md z-10 border-2 border-white">
+                            <button data-html2canvas-ignore="true" onclick="removeFromSchedule('${c.code}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 md:w-5 md:h-5 flex items-center justify-center text-[10px] hover:bg-red-600 transition shadow-md z-10 border-2 border-white">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>`;
@@ -502,14 +593,18 @@ document.getElementById('searchInput').addEventListener('input', e => {
     iosWin.document.write('<meta name="viewport" content="width=device-width,initial-scale=1"><img src="' + dataUrl + '" style="width:100%">');
     } else {
     let link = document.createElement('a');
-    link.download = 'RU_Timetable_2567.png';
+    link.download = 'RU_Timetable_2-2569.png';
     link.href = dataUrl;
     link.click();
 }
                 
-                // คืนค่าระบบเลื่อนจอกลับมาเหมือนเดิม
+           }).catch(err => {
+                console.error(err);
+                if (iosWin) iosWin.close();
+                alert('บันทึกรูปภาพไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+            }).finally(() => {
+                // คืนค่าระบบเลื่อนจอกลับมาเหมือนเดิม (ทำเสมอ ไม่ว่าสำเร็จหรือล้มเหลว)
                 tableContainer.style.overflowX = originalOverflow;
-                
                 btn.innerHTML = originalContent;
                 btn.classList.remove('opacity-75', 'cursor-wait');
             });
@@ -536,13 +631,14 @@ document.getElementById('searchInput').addEventListener('input', e => {
                 setTimeout(() => box.classList.add('hidden'), 3500);
                 return;
             }
-            mySchedule.push(course);
+            mySchedule.push(course); saveSchedule();
             applySearch();
             renderTimetableGrid();
         }
 
         function removeFromSchedule(code) {
             mySchedule = mySchedule.filter(c => c.code !== code);
+            saveSchedule();
             applySearch()
             renderTimetableGrid();
         }
@@ -681,17 +777,61 @@ function resetIdle() { clearTimeout(idleTimer); if (isAdmin) idleTimer = setTime
         document.getElementById('btnSyncData').addEventListener('click', async () => {
             document.getElementById('stepAdminPanel').classList.add('hidden');
             document.getElementById('stepLoading').classList.remove('hidden');
-            document.getElementById('loadingText').innerText = "กำลังดึงข้อมูลล่าสุดจากชีต...";
+            document.getElementById('loadingText').innerText = "กำลังโหลดข้อมูลวิชาล่าสุด...";
             
             await fetchCourses(); 
             
             setTimeout(() => {
                 overlay.classList.add('opacity-0'); modalBox.classList.add('scale-95');
                 setTimeout(() => overlay.classList.add('hidden'), 300);
-                alert("ดึงข้อมูลล่าสุดสำเร็จแล้ว!");
+                alert("โหลดข้อมูลวิชาล่าสุดสำเร็จแล้ว!");
             }, 1000);
         });
 
+    document.getElementById('btnClear').addEventListener('click', () => {
+    if (mySchedule.length === 0) return;
+    if (!confirm('ล้างวิชาทั้งหมดในตารางเรียนของคุณหรือไม่?')) return;
+    mySchedule = [];
+    saveSchedule();
+    applySearch();
+    renderTimetableGrid();
+});
+                // ----- ปุ่มคู่มือการใช้งาน -----
+        (function () {
+            const widget = document.getElementById('helpWidget');
+            const fab = document.getElementById('helpFab');
+            const panel = document.getElementById('helpPanel');
+            const icon = document.getElementById('helpIcon');
+            const dot = document.getElementById('helpDot');
+
+            try {
+                if (sessionStorage.getItem('ru_help_hidden')) widget.classList.add('hidden');
+                if (localStorage.getItem('ru_help_seen')) dot.classList.add('hidden');
+            } catch (e) {}
+
+            function setOpen(open) {
+                panel.classList.toggle('is-open', open);
+                fab.setAttribute('aria-expanded', String(open));
+                icon.className = open ? 'fa-solid fa-xmark' : 'fa-solid fa-question';
+                if (open) {
+                    dot.classList.add('hidden');
+                    try { localStorage.setItem('ru_help_seen', '1'); } catch (e) {}
+                }
+            }
+
+            fab.addEventListener('click', () => setOpen(!panel.classList.contains('is-open')));
+            document.getElementById('helpClose').addEventListener('click', () => setOpen(false));
+            document.getElementById('helpHide').addEventListener('click', () => {
+                setOpen(false);
+                widget.classList.add('hidden');
+                try { sessionStorage.setItem('ru_help_hidden', '1'); } catch (e) {}
+            });
+            document.addEventListener('click', e => {
+                if (panel.classList.contains('is-open') && !panel.contains(e.target) && !fab.contains(e.target)) setOpen(false);
+            });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') setOpen(false); });
+        })();
+        
         loadSystemConfig();
         fetchCourses();
         renderTimetableGrid();
