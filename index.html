@@ -2,21 +2,22 @@
 <html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>RU Timetable - ระบบจัดตารางเรียน</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- โหลดไลบรารีสำหรับถ่ายรูปหน้าจอ (ดาวน์โหลดตาราง) -->
+    <!-- โหลดไลบรารีสำหรับถ่ายรูปหน้าจอ -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style> 
+        button, a { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
         body { font-family: 'Prompt', sans-serif; background-color: #f1f5f9; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         .timetable-container { -webkit-overflow-scrolling: touch; }
     </style>
 </head>
-<body class="text-slate-800 flex flex-col h-screen overflow-hidden">
+<body class="text-slate-800 flex flex-col min-h-[100dvh] lg:h-[100dvh] lg:overflow-hidden">
 
     <!-- แถบเมนู -->
     <nav class="bg-white shadow-sm z-50 shrink-0 border-b border-slate-200">
@@ -53,19 +54,19 @@
     </div>
 
     <!-- ส่วนเนื้อหาหลัก -->
-    <div class="max-w-[1400px] mx-auto px-2 md:px-4 py-4 md:py-6 w-full flex-1 overflow-y-auto md:overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+    <div class="max-w-[1400px] mx-auto px-2 md:px-4 py-3 md:py-6 w-full flex-1 lg:overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
         
         <!-- ฝั่งซ้าย: ค้นหาและรายการวิชา -->
-        <div class="lg:col-span-4 flex flex-col h-auto md:h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
+        <div class="order-2 lg:order-1 lg:col-span-4 flex flex-col h-auto lg:h-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden min-h-[400px]">
             <div class="p-4 border-b border-slate-100 bg-slate-50 shrink-0">
                 <h2 class="font-bold text-lg mb-3 text-slate-700"><i class="fa-solid fa-magnifying-glass text-blue-500 mr-2"></i>ค้นหาวิชาเรียน</h2>
                 <div class="relative">
                     <i class="fa-solid fa-bolt absolute left-4 top-3.5 text-amber-400"></i>
-                    <input type="text" id="searchInput" placeholder="พิมพ์รหัส หรือชื่อวิชา..." class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-sm shadow-inner bg-white">
+                    <input type="text" id="searchInput" placeholder="พิมพ์รหัส หรือชื่อวิชา..." class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition text-base md:text-sm shadow-inner bg-white">
                 </div>
             </div>
             
-            <div id="courseList" class="flex-1 overflow-y-auto no-scrollbar p-3 space-y-4 bg-slate-50/50">
+            <div id="courseList" class="flex-1 overflow-y-auto no-scrollbar p-3 space-y-4 bg-slate-50/50 max-h-[60vh] lg:max-h-none">
                 <div class="text-center text-slate-400 mt-10">
                     <i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-blue-500"></i>
                     <p>กำลังเชื่อมต่อฐานข้อมูล...</p>
@@ -74,7 +75,7 @@
         </div>
 
         <!-- ฝั่งขวา: ตารางเรียน -->
-        <div class="lg:col-span-8 flex flex-col h-auto md:h-full bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6 overflow-y-auto no-scrollbar relative">
+        <div class="order-1 lg:order-2 lg:col-span-8 flex flex-col h-auto lg:h-full bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-6 overflow-y-auto no-scrollbar relative">
             <div class="flex justify-between items-center mb-6 shrink-0">
                 <h2 class="text-xl md:text-2xl font-bold flex items-center gap-2 text-slate-800">
                     <i class="fa-regular fa-calendar-days text-blue-500"></i> ตารางเรียนของฉัน
@@ -89,12 +90,12 @@
                 <i class="fa-solid fa-triangle-exclamation"></i> ไม่สามารถเพิ่มได้! วันและเวลาเรียนทับซ้อนกัน
             </div>
 
-            <!-- 📸 ส่วนที่จะถูกแคปเจอร์ (ตาราง + กำหนดสอบ) -->
+            <!-- 📸 ส่วนที่จะถูกแคปเจอร์ -->
             <div id="captureArea" class="bg-white p-2 rounded-xl flex-1 flex flex-col">
                 <!-- โครงตารางสอน -->
                 <div class="overflow-x-auto pb-4 timetable-container no-scrollbar flex-1">
-                    <div class="min-w-[700px] bg-slate-50 p-4 rounded-2xl border border-slate-100 h-full">
-                        <div class="grid grid-cols-5 gap-2 text-center text-xs font-semibold text-slate-500 mb-3 ml-[76px]">
+                    <div class="min-w-[560px] md:min-w-[700px] bg-slate-50 p-4 rounded-2xl border border-slate-100 h-full">
+                        <div class="grid grid-cols-5 gap-2 text-center text-xs font-semibold text-slate-500 mb-3 ml-[56px] md:ml-[76px]">
                             <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">07:30 - 09:20</div>
                             <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">09:30 - 11:20</div>
                             <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">11:30 - 13:20</div>
@@ -102,7 +103,7 @@
                             <div class="bg-white py-1 rounded-md shadow-sm border border-slate-100">15:30 - 17:20</div>
                         </div>
                         <div id="timetableRows" class="space-y-3">
-                            <!-- ถูกสร้างด้วย JS -->
+                            <!-- ถูกสร้างด้วย JS แบบแก้บั๊กรูปภาพ -->
                         </div>
                     </div>
                 </div>
@@ -137,7 +138,7 @@
                     <h3 class="font-bold text-lg text-slate-800"><i class="fa-solid fa-shield-halved text-blue-500 mr-2"></i>ผู้ดูแลระบบ</h3>
                     <button class="text-slate-400 hover:text-red-500 close-modal"><i class="fa-solid fa-xmark text-xl"></i></button>
                 </div>
-                <input type="password" id="adminPassword" placeholder="รหัสผ่าน..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 mb-2 bg-slate-50 text-center tracking-widest text-lg">
+                <input type="password" id="adminPassword" placeholder="รหัสผ่าน..." class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 mb-2 bg-slate-50 text-center tracking-widest text-base">
                 <p id="errorMsg" class="text-red-500 text-sm hidden mb-4 text-center">รหัสผ่านไม่ถูกต้อง!</p>
                 <button id="btnSubmitPassword" class="w-full mt-4 bg-slate-800 hover:bg-slate-900 text-white py-3 rounded-xl font-medium transition">เข้าสู่ระบบ</button>
             </div>
@@ -150,7 +151,7 @@
                 
                 <div class="mb-5 bg-slate-50 p-4 rounded-xl border border-slate-100">
                     <label class="block text-sm font-bold text-slate-700 mb-2"><i class="fa-solid fa-bullhorn text-amber-500 mr-1"></i> ประกาศข่าวสารด่วน</label>
-                    <textarea id="adminNewsInput" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 text-sm" placeholder="พิมพ์ข้อความที่นี่... (ลบข้อความเพื่อซ่อนแถบ)"></textarea>
+                    <textarea id="adminNewsInput" rows="3" class="w-full px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:border-blue-500 text-base md:text-sm" placeholder="พิมพ์ข้อความที่นี่... (ลบข้อความเพื่อซ่อนแถบ)"></textarea>
                     <button id="btnSaveNews" class="w-full mt-3 bg-amber-500 hover:bg-amber-600 text-white py-2.5 rounded-xl font-medium transition flex justify-center items-center gap-2 text-sm shadow-sm">
                         บันทึกประกาศ
                     </button>
@@ -337,13 +338,8 @@
             });
         }
 
-        document.getElementById('searchInput').addEventListener('input', (e) => {
-            const text = e.target.value.toLowerCase();
-            renderCourseList(allCourses.filter(c => c.code.toLowerCase().includes(text) || c.name.toLowerCase().includes(text)));
-        });
-
         // ==========================================
-        // จัดการตารางเรียน (ฝั่งขวา)
+        // การแก้บั๊ก Html2Canvas (ลบ truncate และ leading-none ออก)
         // ==========================================
         function renderTimetableGrid() {
             const container = document.getElementById('timetableRows');
@@ -352,33 +348,43 @@
 
             DAYS.forEach(dayObj => {
                 let rowHtml = `<div class="flex items-center gap-3 relative">
-                    <div class="w-16 h-[76px] rounded-xl flex flex-col justify-center items-center font-bold text-sm shrink-0 shadow-sm border bg-white ${dayObj.color.replace('bg-', 'text-').split(' ')[1]}">
+                    <div class="w-12 md:w-16 h-[68px] md:h-[76px] rounded-xl flex flex-col justify-center items-center font-bold text-sm shrink-0 shadow-sm border bg-white ${dayObj.color.replace('bg-', 'text-').split(' ')[1]}">
                         <span class="text-base leading-none">${dayObj.name}</span><span class="text-[10px] font-medium text-slate-400 mt-1">${dayObj.th}</span>
                     </div>
-                    <div class="flex-1 grid grid-cols-5 gap-2 h-[76px] bg-white rounded-xl border border-dashed border-slate-200 p-1 relative shadow-sm">`;
+                    <div class="flex-1 grid grid-cols-5 gap-2 h-[68px] md:h-[76px] bg-white rounded-xl border border-dashed border-slate-200 p-1 relative shadow-sm">`;
 
+                let slots = [null, null, null, null, null];
                 const dayCourses = mySchedule.filter(c => mapDay(c.day) === dayObj.id);
                 
                 dayCourses.forEach(c => {
                     totalCredits += Number(c.credit) || 0;
-                    
                     const hourStart = parseInt(c.start.split(':')[0]);
-                    let colIdx = 1;
-                    if (hourStart >= 9 && hourStart < 11) colIdx = 2;
-                    else if (hourStart >= 11 && hourStart < 13) colIdx = 3;
-                    else if (hourStart >= 13 && hourStart < 15) colIdx = 4;
-                    else if (hourStart >= 15) colIdx = 5;
+                    let colIdx = 0; 
+                    if (hourStart >= 9 && hourStart < 11) colIdx = 1;
+                    else if (hourStart >= 11 && hourStart < 13) colIdx = 2;
+                    else if (hourStart >= 13 && hourStart < 15) colIdx = 3;
+                    else if (hourStart >= 15) colIdx = 4;
+                    
+                    slots[colIdx] = c;
+                });
 
-                    rowHtml += `
-                        <div class="col-start-${colIdx} col-span-1 ${dayObj.color} rounded-lg p-2 flex flex-col justify-center relative group shadow-sm transition-transform hover:scale-[1.02] cursor-default border" data-html2canvas-ignore="false">
-                            <span class="font-black text-xs md:text-sm leading-none mb-1.5 truncate">${c.code}</span>
-                            <span class="text-[9px] md:text-[10px] leading-none opacity-80 truncate bg-white/50 py-0.5 px-1 rounded inline-block w-fit">${c.room}</span>
-                            <!-- ซ่อนปุ่มลบตอนที่ดาวน์โหลดรูปภาพ -->
-                            <button data-html2canvas-ignore="true" onclick="removeFromSchedule('${c.code}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition shadow-md z-10 border-2 border-white">
+                for(let i=0; i<5; i++) {
+                    let c = slots[i];
+                    if (c) {
+                        // เปลี่ยนคลาสตัดคำ ให้เป็นคลาสปกติ html2canvas จะได้อ่านออก
+                        rowHtml += `
+                        <div class="col-span-1 ${dayObj.color} rounded-lg p-2 flex flex-col justify-center relative group shadow-sm transition-transform hover:scale-[1.02] border cursor-default">
+                            <span class="font-black text-xs md:text-sm mb-1">${c.code}</span>
+                            <span class="text-[9px] md:text-[10px] opacity-80 bg-white/50 py-0.5 px-1 rounded inline-block w-fit">${c.room}</span>
+                            <button data-html2canvas-ignore="true" onclick="removeFromSchedule('${c.code}')" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 md:w-5 md:h-5 flex items-center justify-center text-[10px] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition shadow-md z-10 border-2 border-white">
                                 <i class="fa-solid fa-xmark"></i>
                             </button>
                         </div>`;
-                });
+                    } else {
+                        rowHtml += `<div class="col-span-1 rounded-lg"></div>`;
+                    }
+                }
+                
                 rowHtml += `</div></div>`;
                 container.insertAdjacentHTML('beforeend', rowHtml);
             });
@@ -394,6 +400,56 @@
             document.getElementById('totalCredits').innerText = totalCredits;
         }
 
+        // ==========================================
+        // ระบบถ่ายรูปหน้าจอ (Download) - แก้บั๊กเรื่องการเลื่อนจอ
+        // ==========================================
+        document.getElementById('btnDownload').addEventListener('click', function() {
+            if(mySchedule.length === 0) {
+                alert('โปรดเพิ่มวิชาเรียนลงในตารางก่อนดาวน์โหลดครับ');
+                return;
+            }
+            
+            const btn = this;
+            const originalContent = btn.innerHTML;
+            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...`;
+            btn.classList.add('opacity-75', 'cursor-wait');
+
+            // ปิดระบบเลื่อนจอ (Overflow) ชั่วคราวก่อนถ่ายรูป เพื่อไม่ให้รูปแหว่ง
+            const tableContainer = document.querySelector('.timetable-container');
+            const originalOverflow = tableContainer.style.overflowX;
+            tableContainer.style.overflowX = 'visible';
+
+            const element = document.getElementById('captureArea');
+            html2canvas(element, { 
+                scale: 2, 
+                backgroundColor: "#ffffff", 
+                useCORS: true,
+                allowTaint: true,
+                logging: false,
+                windowWidth: element.scrollWidth // บังคับให้ถ่ายเต็มความกว้าง
+            }).then(canvas => {
+                const dataUrl = canvas.toDataURL('image/png');
+if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+    const w = window.open();
+    w.document.write('<img src="' + dataUrl + '" style="width:100%">');
+} else {
+    let link = document.createElement('a');
+    link.download = 'RU_Timetable_2567.png';
+    link.href = dataUrl;
+    link.click();
+}
+                
+                // คืนค่าระบบเลื่อนจอกลับมาเหมือนเดิม
+                tableContainer.style.overflowX = originalOverflow;
+                
+                btn.innerHTML = originalContent;
+                btn.classList.remove('opacity-75', 'cursor-wait');
+            });
+        });
+
+        // ==========================================
+        // อื่นๆ (เพิ่มลบตาราง และ แอดมิน)
+        // ==========================================
         function addToSchedule(code) {
             const course = allCourses.find(c => c.code === code);
             const hourStart = parseInt(course.start.split(':')[0]);
@@ -420,41 +476,6 @@
             renderTimetableGrid();
         }
 
-        // ==========================================
-        // ระบบถ่ายรูปหน้าจอ (Download)
-        // ==========================================
-        document.getElementById('btnDownload').addEventListener('click', function() {
-            if(mySchedule.length === 0) {
-                alert('โปรดเพิ่มวิชาเรียนลงในตารางก่อนดาวน์โหลดครับ');
-                return;
-            }
-            
-            const btn = this;
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังบันทึก...`;
-            btn.classList.add('opacity-75', 'cursor-wait');
-
-            // ใช้ html2canvas แคปเจอร์เฉพาะส่วนที่มี id="captureArea"
-            const element = document.getElementById('captureArea');
-            html2canvas(element, { 
-                scale: 2, // ทำให้รูปชัดขึ้น 2 เท่า (HD)
-                backgroundColor: "#f8fafc", 
-                logging: false
-            }).then(canvas => {
-                let link = document.createElement('a');
-                link.download = 'RU_Timetable_2567.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-                
-                // คืนค่าปุ่มกลับมาเหมือนเดิม
-                btn.innerHTML = originalContent;
-                btn.classList.remove('opacity-75', 'cursor-wait');
-            });
-        });
-
-        // ==========================================
-        // ระบบแอดมิน
-        // ==========================================
         async function loadSystemConfig() {
             try {
                 const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/settings/general`;
