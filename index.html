@@ -141,6 +141,11 @@
                     </div>
                 </div>
 
+                    <div id="flexBox" class="hidden mt-3 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs md:text-sm text-amber-800">
+                    <b><i class="fa-solid fa-asterisk mr-1"></i>วิชาที่อาจารย์กำหนดเวลาเรียนอีกครั้ง (ไม่แสดงในตาราง)</b>
+                    <ul id="flexList" class="mt-1 space-y-0.5"></ul>
+                </div>
+                
                 <!-- สรุปข้อมูลด้านล่าง -->
                 <div class="mt-4 pt-4 border-t border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 shrink-0">
                     <div class="w-full sm:w-auto">
@@ -321,9 +326,11 @@ function loadSavedSchedule() {
     codes.forEach(code => {
         const c = allCourses.find(x => x.code === code);
         if (!c) return; // วิชานี้ถูกลบจากฐานข้อมูลแล้ว
-        const closed = (c.note && c.note.includes("ไม่เปิดสอน")) || c.day === "-" || c.start === "-";
-        if (closed) return;
-        const clash = result.some(r => mapDay(r.day) === mapDay(c.day) && slotOf(r.start) === slotOf(c.start));
+                if (isClosed(c)) return;
+        const clash = !isFlexible(c) && result.some(r =>
+            !isFlexible(r) &&
+            mapDay(r.day) === mapDay(c.day) &&
+            slotOf(r.start) === slotOf(c.start));
         if (!clash) result.push(c);
     });
     mySchedule = result;
@@ -374,15 +381,38 @@ function loadSavedSchedule() {
         }
 
         function mapDay(dayStr) {
-            if(!dayStr || dayStr === "-") return "-";
-            const d = dayStr.toUpperCase().trim();
-            if(d.includes("MON")) return "M";
-            if(d.includes("TUE")) return "TU";
-            if(d.includes("WED")) return "W";
-            if(d.includes("THU")) return "TH";
-            if(d.includes("FRI")) return "F";
-            return d;
-        }
+    if(!dayStr || dayStr === "-") return "-";
+    const d = dayStr.toUpperCase().trim();
+    // ถ้ามีหลายวัน เช่น Monday-Friday ให้ถือว่าไม่ระบุวัน
+    if ((d.match(/MON|TUE|WED|THU|FRI/g) || []).length > 1) return "FLEX";
+    if(d.includes("MON")) return "M";
+    if(d.includes("TUE")) return "TU";
+    if(d.includes("WED")) return "W";
+    if(d.includes("THU")) return "TH";
+    if(d.includes("FRI")) return "F";
+    return d;
+}
+
+// รหัสหลัก เช่น "EDU2103 LEB" -> "EDU2103"
+function baseCode(code) {
+    return String(code || "").trim().split(/\s+/)[0];
+}
+
+// วิชาที่อาจารย์กำหนดวัน/เวลาอีกครั้ง (มีหลายวัน หรือมีวันแต่ไม่มีเวลา)
+function isFlexible(c) {
+    const d = String(c.day || "").toUpperCase();
+    const n = (d.match(/MON|TUE|WED|THU|FRI/g) || []).length;
+    if (n === 0) return false;
+    const noTime = !/\d{1,2}:\d{2}/.test(String(c.start || ""));
+    return n > 1 || noTime;
+}
+
+// วิชาที่ไม่เปิดสอนจริง ๆ (วิชา flexible ไม่ถือว่าปิด)
+function isClosed(c) {
+    if (c.note && c.note.includes("ไม่เปิดสอน")) return true;
+    if (isFlexible(c)) return false;
+    return !c.day || c.day.trim() === "-" || !c.start || c.start.trim() === "-";
+}
 
         function checkEmpty(val) {
             return (!val || val === "-" || val.trim() === "") ? `<span class="text-slate-300">ไม่ระบุ</span>` : val;
@@ -394,12 +424,16 @@ function loadSavedSchedule() {
         async function fetchCourses() {
             document.getElementById('courseList').innerHTML = `<div class="text-center text-slate-400 mt-10"><i class="fa-solid fa-circle-notch fa-spin text-3xl mb-3 text-blue-500"></i><p>กำลังโหลดข้อมูลล่าสุด...</p></div>`;
             try {
-                const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/courses?pageSize=300`;
-                const res = await fetch(url);
-                const data = await res.json();
-                
-                if (data.documents) {
-                    allCourses = data.documents.map(doc => {
+                 let docs = [], token = "";
+                do {
+                    const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents/courses?pageSize=300${token ? "&pageToken=" + encodeURIComponent(token) : ""}`;
+                    const data = await (await fetch(url)).json();
+                    docs = docs.concat(data.documents || []);
+                    token = data.nextPageToken || "";
+                } while (token);
+
+                if (docs.length) {
+                    allCourses = docs.map(doc => {
                         const f = doc.fields;
                         let rawInstructor = getField(f, "Instructor", "ผู้สอน");
                         if(rawInstructor !== "-") {
@@ -458,7 +492,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
 
             courses.forEach(c => {
                 const isAdded = mySchedule.some(sch => sch.code === c.code);
-                const isNotOffered = (c.note && c.note.includes("ไม่เปิดสอน")) || (!c.day || c.day.trim() === "-" || !c.start || c.start.trim() === "-");
+                const isNotOffered = isClosed(c);
                 
                 let btnHTML = "";
                 let cardStyle = "";
@@ -483,6 +517,10 @@ document.getElementById('searchInput').addEventListener('input', e => {
                     }
                 }
 
+                if (isFlexible(c)) {
+                noteHtml += `<div class="col-span-2 pt-2 border-t border-slate-100 text-amber-600 font-medium mt-1"><i class="fa-solid fa-asterisk w-4"></i> วันและเวลาเรียนอาจารย์ผู้สอนจะกำหนดอีกครั้ง</div>`;
+                }
+                
                 let examHtml = "";
                 if (c.examDate !== '-') {
                     examHtml = `<div class="col-span-2 pt-2 border-t border-slate-100 text-amber-600 font-medium mt-1"><i class="fa-solid fa-pen text-amber-500 w-4"></i> สอบ: ${c.examDate} ${c.examSession !== "-" ? `(${c.examSession})` : ''}</div>`;
@@ -511,7 +549,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
                     ${instructorHtml}
                     
                     <div class="grid grid-cols-2 gap-y-2 text-[11px] text-slate-500 bg-white p-3 rounded-lg border border-slate-100 shadow-sm">
-                        <div class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-blue-400 w-3"></i> ${checkEmpty(c.day)} ${checkEmpty(c.start)}-${checkEmpty(c.end)}</div>
+                        <div class="flex items-center gap-1.5"><i class="fa-regular fa-clock text-blue-400 w-3"></i> ${isFlexible(c) ? `<span class="text-amber-600 font-semibold">* ${checkEmpty(c.day)}</span>` : `${checkEmpty(c.day)} ${checkEmpty(c.start)}-${checkEmpty(c.end)}`}</div>
                         <div class="flex items-center gap-1.5 truncate"><i class="fa-solid fa-location-dot text-red-400 w-3"></i> ${checkEmpty(c.room)}</div>
                         ${examHtml}
                         ${noteHtml}
@@ -539,8 +577,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
                 let slots = [null, null, null, null, null];
                 const dayCourses = mySchedule.filter(c => mapDay(c.day) === dayObj.id);
                 
-                dayCourses.forEach(c => {
-                    totalCredits += Number(c.credit) || 0;
+                    dayCourses.forEach(c => {
                     const colIdx = slotOf(c.start);
                     if (colIdx >= 0) slots[colIdx] = c;
                 });
@@ -573,6 +610,20 @@ document.getElementById('searchInput').addEventListener('input', e => {
             mySchedule.filter(c => c.examDate && c.examDate !== "-" && c.examDate !== "").forEach(c => {
                 examList.insertAdjacentHTML('beforeend', `<li class="flex items-center gap-2 border-b border-slate-100 pb-1.5 pt-1 last:border-0"><span class="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-pen"></i></span> <b class="text-slate-700">${c.code}</b> : <span class="text-slate-500">${c.examDate} ${c.examSession !== "-" ? `(${c.examSession})` : ''}</span></li>`);
             });
+
+                        // วิชา flexible: แสดงในกล่องแยกใต้ตาราง
+            const flexCourses = mySchedule.filter(isFlexible);
+            document.getElementById('flexBox').classList.toggle('hidden', flexCourses.length === 0);
+            document.getElementById('flexList').innerHTML = flexCourses.map(c =>
+                `<li>* <b>${c.code}</b> ${c.name} <span class="opacity-70">(${c.credit} หน่วยกิต)</span></li>`).join('');
+
+            // หน่วยกิต: นับครั้งเดียวต่อรหัสหลัก (LEB + LAB = 3 ไม่ใช่ 6)
+            const creditMap = {};
+            mySchedule.forEach(c => {
+                const b = baseCode(c.code);
+                if (!(b in creditMap)) creditMap[b] = Number(c.credit) || 0;
+            });
+            totalCredits = Object.values(creditMap).reduce((a, b) => a + b, 0);
 
             document.getElementById('totalCredits').innerText = totalCredits;
         }
@@ -647,7 +698,10 @@ document.getElementById('searchInput').addEventListener('input', e => {
             const course = allCourses.find(c => c.code === code);
             if (!course) return;
 
-            const isOverlap = mySchedule.some(c => mapDay(c.day) === mapDay(course.day) && slotOf(c.start) === slotOf(course.start));
+            const isOverlap = !isFlexible(course) && mySchedule.some(c =>
+    !isFlexible(c) &&
+    mapDay(c.day) === mapDay(course.day) &&
+    slotOf(c.start) === slotOf(course.start));
 
             if (isOverlap) {
                 const box = document.getElementById('overlapAlert');
