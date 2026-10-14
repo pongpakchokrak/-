@@ -607,15 +607,27 @@ document.getElementById('searchInput').addEventListener('input', e => {
             examList.innerHTML = "";
             if(mySchedule.length === 0) examList.innerHTML = `<li class="text-slate-400 italic">ยังไม่มีวิชาที่มีสอบ</li>`;
             
+                        // รวมวิชาที่สอบวัน-คาบเดียวกันและรหัสหลักเดียวกัน (เช่น LEB + LAB) เป็นบรรทัดเดียว
+            const examGroups = {};
             mySchedule.filter(c => c.examDate && c.examDate !== "-" && c.examDate !== "").forEach(c => {
-                examList.insertAdjacentHTML('beforeend', `<li class="flex items-center gap-2 border-b border-slate-100 pb-1.5 pt-1 last:border-0"><span class="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-pen"></i></span> <b class="text-slate-700">${c.code}</b> : <span class="text-slate-500">${c.examDate} ${c.examSession !== "-" ? `(${c.examSession})` : ''}</span></li>`);
+                const key = baseCode(c.code) + '|' + c.examDate + '|' + c.examSession;
+                if (!examGroups[key]) examGroups[key] = { base: baseCode(c.code), codes: [], examDate: c.examDate, examSession: c.examSession };
+                examGroups[key].codes.push(c.code);
+            });
+
+            Object.values(examGroups).forEach(g => {
+                // ถ้ามีวิชาเดียวในกลุ่ม แสดงรหัสเต็ม / ถ้ามีหลายวิชา แสดงรหัสหลัก + ส่วนต่อท้ายในวงเล็บ
+                const label = g.codes.length === 1
+                    ? g.codes[0]
+                    : `${g.base} <span class="text-slate-400 font-medium">(${g.codes.map(x => x.replace(g.base, '').trim() || x).join(', ')})</span>`;
+                examList.insertAdjacentHTML('beforeend', `<li class="flex items-center gap-2 border-b border-slate-100 pb-1.5 pt-1 last:border-0"><span class="bg-amber-100 text-amber-700 text-[10px] px-1.5 py-0.5 rounded font-bold"><i class="fa-solid fa-pen"></i></span> <b class="text-slate-700">${label}</b> : <span class="text-slate-500">${g.examDate} ${g.examSession !== "-" ? `(${g.examSession})` : ''}</span></li>`);
             });
 
                         // วิชา flexible: แสดงในกล่องแยกใต้ตาราง
             const flexCourses = mySchedule.filter(isFlexible);
             document.getElementById('flexBox').classList.toggle('hidden', flexCourses.length === 0);
             document.getElementById('flexList').innerHTML = flexCourses.map(c =>
-                `<li>* <b>${c.code}</b> ${c.name} <span class="opacity-70">(${c.credit} หน่วยกิต)</span></li>`).join('');
+            `<li class="flex items-start gap-2"><span class="mt-[7px] w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span><div><b>${c.code}</b> ${c.name} <span class="opacity-70">(${c.credit} หน่วยกิต)</span></div></li>`).join('');
 
             // หน่วยกิต: นับครั้งเดียวต่อรหัสหลัก (LEB + LAB = 3 ไม่ใช่ 6)
             const creditMap = {};
@@ -659,7 +671,7 @@ document.getElementById('searchInput').addEventListener('input', e => {
     onclone: (doc) => {
     const s = doc.createElement('style');
     // ปรับเลข -0.3em ได้: ตัวอักษรยังต่ำ -> ใช้ -0.45em, สูงเกิน -> ใช้ -0.15em
-        s.textContent = '#captureArea span, #captureArea b, #captureArea h4, #captureArea p:not(:has(*)) { position: relative; top: -0.3em; } #captureArea .grid-cols-5 > div > span { top: -0.55em; }';
+        s.textContent = '#captureArea span, #captureArea b, #captureArea h4, #captureArea p:not(:has(*)) { position: relative; top: -0.3em; } #captureArea .grid-cols-5 > div > span { top: -0.55em; }  #captureArea #flexList span.rounded-full { top: 0; }';
     doc.head.appendChild(s);
 }
             }).then(canvas => {
